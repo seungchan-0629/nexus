@@ -1,0 +1,11 @@
+## Order Batch ConfigMap
+## 운영 DB(nexus-db-service)를 바라봄
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-batch-config
+data:
+  SPRING_PROFILES_ACTIVE: prod
+  DB_URL: jdbc:mariadb://nexus-db-service:3306/nexus
+  DB_USER: root
+  DB_DRIVER: org.mariadb.jdbc.Driver

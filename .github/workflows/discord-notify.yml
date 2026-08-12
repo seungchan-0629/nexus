@@ -1,0 +1,70 @@
+name: Discord Notification
+
+on:
+  pull_request:
+    types: [opened, closed]
+  issues:
+    types: [opened, closed]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  pr-opened:
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'opened' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send PR opened message
+        uses: Ilshidur/action-discord@0.3.2
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            📬 **[PR 생성]** `${{ github.repository }}`
+            - 작업자: ${{ github.event.pull_request.user.login }}
+            - 제목: ${{ github.event.pull_request.title }}
+            - 링크: ${{ github.event.pull_request.html_url }}
+
+  pr-merged:
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send PR merged message
+        uses: Ilshidur/action-discord@0.3.2
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            🎉 **[PR 머지]** `${{ github.repository }}`
+            - 작업자: ${{ github.event.pull_request.user.login }}
+            - 제목: ${{ github.event.pull_request.title }}
+            - 링크: ${{ github.event.pull_request.html_url }}
+
+  issue-opened:
+    if: ${{ github.event_name == 'issues' && github.event.action == 'opened' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send issue opened message
+        uses: Ilshidur/action-discord@0.3.2
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            🐛 **[이슈 생성]** `${{ github.repository }}`
+            - 작성자: ${{ github.event.issue.user.login }}
+            - 제목: ${{ github.event.issue.title }}
+            - 링크: ${{ github.event.issue.html_url }}
+
+  issue-closed:
+    if: ${{ github.event_name == 'issues' && github.event.action == 'closed' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send issue closed message
+        uses: Ilshidur/action-discord@0.3.2
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            ✅ **[이슈 완료]** `${{ github.repository }}`
+            - 처리자: ${{ github.event.issue.user.login }}
+            - 제목: ${{ github.event.issue.title }}
+            - 링크: ${{ github.event.issue.html_url }}

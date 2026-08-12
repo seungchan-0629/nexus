@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nexus-backend-config
+data:
+  SPRING_PROFILES_ACTIVE: prod
+  DB_URL: jdbc:mariadb://nexus-db-service:3306/nexus
+  DB_USER: root
+  DB_DRIVER: org.mariadb.jdbc.Driver
+  KAFKA_BOOTSTRAP_SERVERS: nexus-kafka-kafka-bootstrap.kafka.svc:9092
+  MCP_NEWS_SERVER_PATH: /app/mcp/server.mjs
+  AWS_S3_STORE_BUCKET: nexus-store-prod
+  AWS_S3_MENU_BUCKET: nexus-menu-prod
+  AWS_S3_REPORT_BUCKET: nexus-report-prod
+  AWS_S3_STATIC: ap-northeast-2
+  MAIL_ADDR: rhdaldthd12@gmail.com

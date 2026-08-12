@@ -1,0 +1,110 @@
+pipeline {
+    // Jenkins 에이전트를 K8s Pod로 실행 (빌드용 컨테이너 3개를 하나의 Pod에 구성)
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins
+  containers:
+  - name: gradle                                    # Java 빌드용 (bootJar)
+    image: eclipse-temurin:17-jdk-alpine
+    command: ['sleep', 'infinity']
+  - name: kaniko                                    # Docker 이미지 빌드 & Push용 (Docker 데몬 불필요)
+    image: gcr.io/kaniko-project/executor:debug
+    command: ['sleep', 'infinity']
+  - name: kubectl                                   # K8s 클러스터 배포용
+    image: bitnami/kubectl:latest
+    command: ['sleep', 'infinity']
+    securityContext:
+      runAsUser: 0                                  # kubectl 실행을 위해 root 권한 필요
+"""
+        }
+    }
+
+    environment {
+        IMAGE_REPO = 'deatytim/nexusback'           // Docker Hub 이미지 저장소
+    }
+
+    stages {
+        // 소스코드 체크아웃
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        // Spring Boot JAR 빌드
+        stage('Build JAR') {
+            steps {
+                container('gradle') {
+                    dir('backend') {
+                        // gradlew 실행 권한 부여 후 테스트 제외하고 JAR 생성
+                        sh 'chmod +x gradlew && ./gradlew :monolith:bootJar -x test'
+                    }
+                }
+            }
+        }
+
+        // Docker 이미지 빌드 및 Docker Hub Push
+        stage('Build & Push Docker Image') {
+            steps {
+                container('kaniko') {
+                    // Jenkins에 저장된 Docker Hub 자격증명 주입
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        sh """
+                            # Kaniko용 Docker Hub 인증 설정
+                            AUTH=\$(printf "%s:%s" "\$DOCKER_USER" "\$DOCKER_PASS" | base64 | tr -d '\\n')
+                            mkdir -p /kaniko/.docker
+                            printf '{"auths":{"https://index.docker.io/v1/":{"auth":"%s"}}}' "\$AUTH" > /kaniko/.docker/config.json
+                            # 이미지 빌드 후 빌드번호 태그 + latest 태그로 Push
+                            /kaniko/executor \\
+                                --context=\$WORKSPACE \\
+                                --dockerfile=\$WORKSPACE/cicd/docker/backend/Dockerfile \\
+                                --destination=${IMAGE_REPO}:${BUILD_NUMBER} \\
+                                --destination=${IMAGE_REPO}:latest
+                        """
+                    }
+                }
+            }
+        }
+
+        // Blue/Green 무중단 배포
+        // 1) 매니페스트 적용 → 2) 현재 슬롯 확인 → 3) 비활성 슬롯에 배포
+        // → 4) Ready 대기 → 5) Service selector 전환으로 트래픽 스위칭
+        stage('Deploy to Kubernetes') {
+            steps {
+                container('kubectl') {
+                    script {
+                        // 1) 현재 트래픽을 받고 있는 슬롯 확인
+                        def currentSlot = sh(
+                            script: "kubectl get svc nexus-backend-service -o jsonpath='{.spec.selector.slot}'",
+                            returnStdout: true
+                        ).trim()
+
+                        // 2) 비활성 슬롯에 새 이미지 설정 후 scale up
+                        def newSlot = (currentSlot == 'blue') ? 'green' : 'blue'
+                        sh "kubectl set image deployment/nexus-backend-${newSlot} nexus-backend=${IMAGE_REPO}:${BUILD_NUMBER}"
+                        sh "kubectl scale deployment/nexus-backend-${newSlot} --replicas=1"
+
+                        // 3) 새 pod가 Ready 상태가 될 때까지 대기
+                        sh "kubectl rollout status deployment/nexus-backend-${newSlot} --timeout=120s"
+
+                        // 4) Service selector를 새 슬롯으로 전환 → 트래픽 즉시 이동
+                        sh "kubectl patch svc nexus-backend-service -p '{\"spec\":{\"selector\":{\"slot\":\"${newSlot}\"}}}'"
+
+                        // 5) 이전 슬롯 scale down → 커넥션 풀 해제
+                        sh "kubectl scale deployment/nexus-backend-${currentSlot} --replicas=0"
+
+                        echo "Switched traffic to ${newSlot} slot, scaled down ${currentSlot}"
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,51 @@
+# Blue/Green 배포 - Green 슬롯
+# Service의 selector.slot 값을 blue/green으로 전환하여 트래픽을 제어합니다.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexus-backend-green
+  labels:
+    app: nexus-backend
+    slot: green            # blue/green 슬롯 구분용 라벨
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nexus-backend
+      slot: green
+  template:
+    metadata:
+      labels:
+        app: nexus-backend
+        slot: green
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8080"
+    spec:
+      containers:
+        - name: nexus-backend
+          image: deatytim/nexusback:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: nexus-backend-config
+            - secretRef:
+                name: nexus-backend-secret
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5

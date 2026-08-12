@@ -1,0 +1,15 @@
+services:
+  mariadb-stats:
+    image: mariadb:11.4
+    container_name: nexus-mariadb-statistics
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: qwer1234
+      MARIADB_DATABASE: nexus
+    ports:
+      - "3307:3306" # 호스트 3307 → 컨테이너 3306 (monolith 3306과 충돌 회피)
+    volumes:
+      - mariadb-statistics-data:/var/lib/mysql
+
+volumes:
+  mariadb-statistics-data:

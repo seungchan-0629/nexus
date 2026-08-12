@@ -1,0 +1,75 @@
+## 부하 테스트 전용 Statistics MSA Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-statistics
+  namespace: test
+  labels:
+    app: test-statistics
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-statistics
+  template:
+    metadata:
+      labels:
+        app: test-statistics
+      annotations:
+        sidecar.istio.io/inject: "false"
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8081"
+    spec:
+      containers:
+        - name: nexus-statistics
+          image: deatytim/nexusstat:dev-msa
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8081
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xms512m -Xmx1024m"
+          envFrom:
+            - configMapRef:
+                name: test-statistics-config
+            - secretRef:
+                name: test-statistics-secret
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 1536Mi
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+---
+## Statistics Pod 디버깅용 NodePort (외부 actuator/health 확인용)
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-statistics-service
+  namespace: test
+spec:
+  type: NodePort
+  selector:
+    app: test-statistics
+  ports:
+    - port: 8081
+      targetPort: 8081
+      nodePort: 30089           # 외부 <노드IP>:30089 으로 접근

@@ -1,0 +1,232 @@
+{
+  "title": "Test Backend Overview",
+  "tags": ["test", "spring-boot", "load-test"],
+  "timezone": "browser",
+  "refresh": "15s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "label": "Instance",
+        "type": "query",
+        "datasource": { "type": "prometheus" },
+        "query": "label_values(up{job=\"kubernetes-pods\", pod=~\"test-backend.*\"}, instance)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".+",
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "title": "",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "title": "현재 TPS",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}[5m]))", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "unit": "reqps", "thresholds": { "steps": [{ "color": "blue", "value": null }] } } },
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "auto" }
+    },
+    {
+      "title": "에러율 (%)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\", status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}[5m])) * 100 or vector(0)", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 5 }] } } },
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "auto" }
+    },
+    {
+      "title": "CPU 사용률",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "targets": [{ "expr": "avg(process_cpu_usage{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"})", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.5 }, { "color": "red", "value": 0.8 }] } } }
+    },
+    {
+      "title": "힙 메모리 사용률",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "targets": [{ "expr": "sum(jvm_memory_used_bytes{area=\"heap\", job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}) / sum(jvm_memory_max_bytes{area=\"heap\", job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"} > 0) * 100", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 85 }] } } }
+    },
+    {
+      "title": "DB 활성 커넥션",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "targets": [{ "expr": "sum(hikaricp_connections_active{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"})", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "min": 0, "max": 20, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 15 }, { "color": "red", "value": 18 }] } } }
+    },
+    {
+      "title": "서버 가동률",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "targets": [{ "expr": "avg(avg_over_time(up{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}[$__range])) * 100", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 95 }, { "color": "yellow", "value": 99 }, { "color": "green", "value": 99.9 }] } } },
+      "options": { "colorMode": "value", "graphMode": "none", "textMode": "auto" }
+    },
+
+    {
+      "title": "HTTP 트래픽",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "title": "HTTP 요청 수 (TPS)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "targets": [{ "expr": "sum by (method, uri) (rate(http_server_requests_seconds_count{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}[5m]))", "legendFormat": "{{method}} {{uri}}" }],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 2 } } }
+    },
+    {
+      "title": "응답 시간 (AVG / P95 / P99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "targets": [
+        { "expr": "sum by (pod) (rate(http_server_requests_seconds_sum{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}[5m])) / sum by (pod) (rate(http_server_requests_seconds_count{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}[5m]))", "legendFormat": "AVG" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}[5m])))", "legendFormat": "P95" },
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}[5m])))", "legendFormat": "P99" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 } } }
+    },
+    {
+      "title": "5xx 에러",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 14 },
+      "targets": [{ "expr": "sum by (status, uri) (rate(http_server_requests_seconds_count{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\", status=~\"5..\"}[5m]))", "legendFormat": "{{status}} {{uri}}" }],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 20, "lineWidth": 2 }, "color": { "mode": "fixed", "fixedColor": "red" } } }
+    },
+    {
+      "title": "4xx 클라이언트 에러",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 14 },
+      "targets": [{ "expr": "sum by (status, uri) (rate(http_server_requests_seconds_count{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\", status=~\"4..\"}[5m]))", "legendFormat": "{{status}} {{uri}}" }],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 20, "lineWidth": 2 }, "color": { "mode": "fixed", "fixedColor": "orange" } } }
+    },
+    {
+      "title": "HTTP 상태코드 분포",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 14 },
+      "targets": [{ "expr": "sum by (status) (increase(http_server_requests_seconds_count{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}[1h]))", "legendFormat": "{{status}}" }],
+      "fieldConfig": { "defaults": {} },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] }, "pieType": "donut" }
+    },
+
+    {
+      "title": "JVM & 시스템",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "title": "CPU 사용량 추이",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
+      "targets": [
+        { "expr": "process_cpu_usage{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}", "legendFormat": "Process CPU" },
+        { "expr": "system_cpu_usage{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}", "legendFormat": "System CPU" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 2 } } }
+    },
+    {
+      "title": "힙 메모리 사용량 추이",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
+      "targets": [
+        { "expr": "sum by (id) (jvm_memory_used_bytes{area=\"heap\", job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"})", "legendFormat": "Used - {{id}}" },
+        { "expr": "sum(jvm_memory_max_bytes{area=\"heap\", job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"} > 0)", "legendFormat": "Max" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 } } }
+    },
+    {
+      "title": "GC 일시정지 시간",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
+      "targets": [{ "expr": "sum by (action, cause) (rate(jvm_gc_pause_seconds_sum{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}[5m]))", "legendFormat": "{{action}} - {{cause}}" }],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "bars", "fillOpacity": 40, "lineWidth": 1 } } }
+    },
+    {
+      "title": "스레드 수",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
+      "targets": [
+        { "expr": "jvm_threads_live_threads{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}", "legendFormat": "Live" },
+        { "expr": "jvm_threads_daemon_threads{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}", "legendFormat": "Daemon" },
+        { "expr": "jvm_threads_peak_threads{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}", "legendFormat": "Peak" }
+      ],
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 } } }
+    },
+
+    {
+      "title": "DB 커넥션",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "title": "DB 커넥션 풀",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "targets": [
+        { "expr": "hikaricp_connections_active{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}", "legendFormat": "Active" },
+        { "expr": "hikaricp_connections_idle{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}", "legendFormat": "Idle" },
+        { "expr": "hikaricp_connections_pending{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}", "legendFormat": "Pending" },
+        { "expr": "hikaricp_connections_max{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}", "legendFormat": "Max" }
+      ],
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 } } }
+    },
+    {
+      "title": "DB 커넥션 획득 시간",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+      "targets": [
+        { "expr": "hikaricp_connections_acquire_seconds_max{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}", "legendFormat": "Max 획득 시간" },
+        { "expr": "rate(hikaricp_connections_acquire_seconds_sum{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}[5m]) / rate(hikaricp_connections_acquire_seconds_count{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}[5m])", "legendFormat": "Avg 획득 시간" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 } } }
+    },
+    {
+      "title": "DB 대기 스레드",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 48 },
+      "targets": [{ "expr": "sum(hikaricp_connections_pending{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"})", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "min": 0, "max": 10, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 5 }] } } }
+    },
+    {
+      "title": "DB 커넥션 타임아웃",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 48 },
+      "targets": [{ "expr": "sum(increase(hikaricp_connections_timeout_total{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}[1h]))", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } } },
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "auto" }
+    },
+    {
+      "title": "Non-Heap 메모리 사용률",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 48 },
+      "targets": [{ "expr": "sum(jvm_memory_used_bytes{area=\"nonheap\", job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"}) / sum(jvm_memory_max_bytes{area=\"nonheap\", job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"} > 0) * 100", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 85 }] } } }
+    },
+    {
+      "title": "디스크 여유 공간",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 48 },
+      "targets": [{ "expr": "disk_free_bytes{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"} / disk_total_bytes{job=\"kubernetes-pods\", pod=~\"test-backend.*\", instance=~\"$instance\"} * 100", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 10 }, { "color": "yellow", "value": 20 }, { "color": "green", "value": 30 }] } } }
+    }
+  ],
+  "schemaVersion": 39
+}

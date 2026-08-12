@@ -1,0 +1,68 @@
+## 부하 테스트 전용 MariaDB
+## 운영 DB(db-statefulset)와 완전히 분리된 별도 인스턴스
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: test-db-statefulset
+  namespace: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      type: test-db
+  serviceName: test-db-service
+  template:
+    metadata:
+      labels:
+        type: test-db
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+        - name: mariadb
+          image: mariadb:latest
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MARIADB_ROOT_PASSWORD
+              value: qwer1234
+            - name: MARIADB_ROOT_HOST
+              value: '%'
+            - name: MARIADB_DATABASE
+              value: nexus
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          volumeMounts:
+            - name: volume
+              mountPath: /var/lib/mysql
+      securityContext:
+        fsGroup: 999
+      terminationGracePeriodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: volume
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1G
+        storageClassName: longhorn
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-db-service
+  namespace: test
+spec:
+  clusterIP: None
+  selector:
+    type: test-db
+  ports:
+    - port: 3306
+      targetPort: 3306

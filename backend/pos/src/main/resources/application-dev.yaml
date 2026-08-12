@@ -1,0 +1,55 @@
+eureka:
+  instance:
+    lease-renewal-interval-in-seconds: 10     # 주소를 갱신하는 시간
+    lease-expiration-duration-in-seconds: 30  # 가져온 주소의 만료 시간
+    prefer-ip-address: true                   # 내 주소를 알려줄 때 Hostname 대신 IP 주소 알려주기
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVICE_URL:http://192.100.30.50:32567/eureka}
+    register-with-eureka: true # 현재 자신의 IP주소를 유레카에 등록
+    fetch-registry: true       # 유레카에 등록된 주소들을 받아오는 것
+
+spring:
+  application:
+    name: NexusPos
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASS}
+    driver-class-name: ${DB_DRIVER}
+    hikari:
+      maximum-pool-size: 20
+      connection-timeout: 30000
+
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer: # 메세지 받기
+      group-id: pos-kafka-group      # POS 서비스만의 그룹 아이디
+      auto-offset-reset: earliest    # 처음 연결 시 가장 오래된 메시지부터 읽음
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "*" # 모든 패키지의 JSON 객체 허용
+        spring.json.type.mapping: >
+          storeEvent:com.example.pos.event.StoreEvent,
+          productEvent:com.example.pos.event.ProductEvent,
+          menuEvent:com.example.pos.event.MenuEvent
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: true
+        spring.json.type.mapping: posCloseEvent:com.example.pos.event.PosCloseEvent
+
+
+
+  jpa:
+    hibernate:
+      ddl-auto: update             # 엔티티 복제 단계(B-1-3c)에서 테이블 자동 생성
+    show-sql: false
+    defer-datasource-initialization: true
+  sql:
+    init:
+      mode: never

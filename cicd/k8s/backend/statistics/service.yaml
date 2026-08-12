@@ -1,0 +1,21 @@
+## 통계 MSA Service — 운영 환경 (namespace: default)
+## Gateway 가 lb://NexusStatistics 로 라우팅 (Eureka 등록 이름 사용)
+## 또는 K8s Service 직접 호출: statistics-service:8081
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: statistics-service
+  namespace: default
+  labels:
+    app: statistics
+spec:
+  selector:
+    app: statistics
+  ports:
+    - port: 8081
+      targetPort: 8081
+      name: http
+  # ClusterIP — 클러스터 내부에서만 접근 (Gateway / Frontend Nginx 가 호출)
+  # 외부 직접 노출 X (Ingress 대신 Gateway 사용)
+  type: ClusterIP

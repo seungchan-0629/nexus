@@ -1,0 +1,16 @@
+## 부하 테스트 전용 Backend ConfigMap
+## 테스트용 DB(test-db-service)를 바라봄
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-backend-config
+  namespace: test
+data:
+  SPRING_PROFILES_ACTIVE: prod
+  DB_URL: jdbc:mariadb://test-db-service:3306/nexus
+  DB_DRIVER: org.mariadb.jdbc.Driver
+  AWS_S3_STORE_BUCKET: nexus-store-archive
+  AWS_S3_MENU_BUCKET: nexus-menu-assets
+  AWS_S3_STATIC: ap-northeast-2
+  KAFKA_BOOTSTRAP_SERVERS: nexus-kafka-kafka-bootstrap.kafka.svc:9092
+  SECRET_KEY: test_sk_DnyRpQWGrN5KbvNG0xKeVKwv1M9E

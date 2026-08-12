@@ -1,0 +1,140 @@
+/* POS 공통 UI — Tailwind @apply로 한곳에서 유지보수 */
+@layer components {
+  .pos-cart-aside {
+    @apply w-[360px] bg-white flex flex-col border-l border-gray-200 shrink-0;
+    box-shadow: -4px 0 15px rgba(0, 0, 0, 0.03);
+  }
+
+  .pos-cart-header {
+    @apply h-14 px-5 border-b border-gray-100 flex justify-between items-center shrink-0;
+  }
+
+  .pos-cart-title {
+    @apply text-sm font-bold text-gray-900 flex items-center gap-2;
+  }
+
+  .pos-cart-btn-ghost {
+    @apply text-xs text-gray-500 hover:text-red-500 border border-gray-200 px-3 py-1.5 rounded-md hover:bg-red-50 hover:border-red-100 transition-colors cursor-pointer;
+  }
+
+  .pos-cart-scroll {
+    @apply flex-1 overflow-y-auto p-4 flex flex-col gap-3 bg-[#F8F9FA];
+  }
+
+  .pos-cart-empty {
+    @apply h-full flex flex-col items-center justify-center text-gray-400;
+  }
+
+  .pos-cart-empty-icon {
+    @apply w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-3;
+  }
+
+  .pos-cart-empty-text {
+    @apply text-sm font-medium text-gray-500;
+  }
+
+  .pos-cart-line {
+    @apply bg-white border border-gray-200 p-4;
+  }
+
+  .pos-cart-line-head {
+    @apply flex justify-between items-start mb-3;
+  }
+
+  .pos-cart-line-name {
+    @apply font-semibold text-gray-900 text-sm leading-tight;
+  }
+
+  .pos-cart-line-remove {
+    @apply text-gray-300 hover:text-red-500 transition-colors ml-2 shrink-0 cursor-pointer;
+  }
+
+  .pos-cart-line-body {
+    @apply flex justify-between items-center;
+  }
+
+  .pos-cart-line-price {
+    @apply font-bold text-gray-900;
+  }
+
+  .pos-cart-qty-row {
+    @apply flex items-center border border-gray-200 rounded-lg overflow-hidden;
+  }
+
+  .pos-cart-qty-btn {
+    @apply w-8 h-7 flex items-center justify-center bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-blue-500 transition-colors cursor-pointer;
+  }
+
+  .pos-cart-qty-value {
+    @apply w-9 h-7 flex items-center justify-center text-xs font-bold text-gray-800 border-x border-gray-200;
+  }
+
+  .pos-cart-footer {
+    @apply p-5 border-t border-gray-200 bg-white shrink-0;
+  }
+
+  .pos-cart-summary {
+    @apply flex justify-between text-gray-500 mb-1.5 text-sm font-medium;
+  }
+
+  .pos-cart-summary-strong {
+    @apply text-gray-900;
+  }
+
+  .pos-cart-total-row {
+    @apply flex justify-between items-end mb-5;
+  }
+
+  .pos-cart-total-label {
+    @apply text-gray-500 font-medium text-sm;
+  }
+
+  .pos-cart-total-amount {
+    @apply text-2xl font-bold text-blue-600 tracking-tight;
+  }
+
+  .pos-cart-checkout {
+    @apply w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all text-white shadow-sm bg-blue-500 hover:bg-blue-600 active:scale-[0.98] cursor-pointer;
+  }
+
+  .pos-cart-checkout--disabled {
+    @apply bg-gray-200 text-gray-400 cursor-not-allowed shadow-none hover:bg-gray-200;
+  }
+
+  /* 마감 확인 모달 */
+  .pos-modal-backdrop {
+    @apply fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4;
+  }
+
+  .pos-close-dialog {
+    @apply bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-sm text-center p-8;
+  }
+
+  .pos-close-icon-wrap {
+    @apply w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-5;
+  }
+
+  .pos-close-title {
+    @apply text-xl font-bold text-gray-900 mb-2;
+  }
+
+  .pos-close-body {
+    @apply text-sm text-gray-500 mb-8 leading-relaxed;
+  }
+
+  .pos-close-highlight {
+    @apply text-orange-500 font-semibold mt-2 block;
+  }
+
+  .pos-close-actions {
+    @apply flex gap-3;
+  }
+
+  .pos-close-btn-cancel {
+    @apply flex-1 py-3 bg-white border border-gray-200 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-50 transition-colors cursor-pointer;
+  }
+
+  .pos-close-btn-confirm {
+    @apply flex-1 py-3 bg-red-500 text-white rounded-xl text-sm font-bold hover:bg-red-600 shadow-sm transition-colors cursor-pointer;
+  }
+}

@@ -1,0 +1,61 @@
+
+server:
+  port: 8088
+
+jwt:
+  secret: ${JWT_SECRET}
+
+eureka:
+  instance:
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVICE_URL}
+    register-with-eureka: false
+    fetch-registry: true
+
+spring:
+  application:
+    name: gateway
+
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:5173"
+              - "${FRONTEND_PROD_URL:https://www.nexusscm.kro.kr}"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+              - UPDATE
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+
+      routes:
+        - id: ${ROUTE_STATISTICS_ID:statistics}
+          uri: ${ROUTE_STATISTICS_URI:lb://NexusStatistics}
+          predicates:
+            - Path=/statistics/**
+          filters:
+            - Jwt
+
+        - id: ${ROUTE_POS_ID:pos}
+          uri: ${ROUTE_POS_URI:lb://NexusPos}
+          predicates:
+            - Path=/pos/**
+          filters:
+            - Jwt
+
+
+
+
+

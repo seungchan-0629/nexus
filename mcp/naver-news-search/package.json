@@ -1,0 +1,11 @@
+{
+  "name": "naver-news-search-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Naver 뉴스 검색 MCP 서버. NAVER_CLIENT_ID/NAVER_CLIENT_SECRET 환경변수 필요.",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.5.0",
+    "zod": "^3.24.2"
+  }
+}

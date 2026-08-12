@@ -1,0 +1,15 @@
+# Blue/Green 배포용 Service
+# slot 값을 Jenkins 파이프라인에서 blue <-> green으로 patch하여 트래픽을 전환합니다.
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexus-backend-service
+spec:
+  selector:
+    app: nexus-backend
+    slot: blue              # Jenkins에서 kubectl patch로 blue <-> green 전환
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP

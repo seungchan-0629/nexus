@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: statistics-config
+  namespace: default
+data:
+  SPRING_PROFILES_ACTIVE: prod
+  DB_URL: jdbc:mariadb://statistics-db-service:3306/nexus
+  DB_USER: root
+  DB_DRIVER: org.mariadb.jdbc.Driver
+  KAFKA_BOOTSTRAP_SERVERS: nexus-kafka-kafka-bootstrap.kafka.svc:9092
+  KAFKA_GROUP_ID: statistics-prod
+  SQL_INIT_MODE: always
+  EUREKA_SERVICE_URL: http://nexus-discovery-service:8761/eureka
+  REDIS_CLUSTER_NODES: "redis-cluster-0.redis-cluster-service:6379,redis-cluster-1.redis-cluster-service:6379,redis-cluster-2.redis-cluster-service:6379,redis-cluster-3.redis-cluster-service:6379,redis-cluster-4.redis-cluster-service:6379,redis-cluster-5.redis-cluster-service:6379"

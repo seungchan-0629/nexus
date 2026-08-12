@@ -1,0 +1,88 @@
+eureka:
+  instance:
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVICE_URL}
+    register-with-eureka: true
+    fetch-registry: true
+
+spring:
+  application:
+    name: NexusStatistics
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASS}
+    driver-class-name: ${DB_DRIVER}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    defer-datasource-initialization: true
+  sql:
+    init:
+      mode: ${SQL_INIT_MODE:always}        # 학습 단계 always, 운영 시 never로 가능
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: ${KAFKA_GROUP_ID:statistics-prod}
+      auto-offset-reset: earliest
+      key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "*"
+        spring.json.type.mapping: paymentEvent:com.example.statistics.event.PaymentEvent
+    # DLT publishing 전용 producer (원본 record value 가 byte[] 이므로 ByteArraySerializer 사용)
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+
+  data:
+    redis:
+      # Cluster 모드 (Master 3 + Slave 3) — #893 도입
+      # ConfigMap 의 REDIS_CLUSTER_NODES 에 콤마 구분 리스트
+      # 예: "redis-cluster-0.redis-cluster-service:6379,redis-cluster-1...:6379,..."
+      cluster:
+        nodes: ${REDIS_CLUSTER_NODES}
+        max-redirects: 3
+      timeout: 2000ms
+      lettuce:
+        cluster:
+          refresh:
+            adaptive: true       # 토폴로지 변경 자동 감지 (fail-over 등)
+            period: 30s          # 30초마다 토폴로지 refresh
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, metrics
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  health:
+    mail:
+      enabled: false
+  metrics:
+    tags:
+      application: ${spring.application.name}

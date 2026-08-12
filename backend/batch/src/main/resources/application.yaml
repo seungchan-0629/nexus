@@ -1,0 +1,11 @@
+spring:
+  profiles:
+    active: dev
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: always
+
+server:
+  port: 8083

@@ -1,0 +1,98 @@
+## 통계 MSA 전용 MariaDB (long-term 통계 영구 저장) — 운영 환경
+## namespace: default
+##
+## 모놀리식 DB 와 분리:
+##   - 모놀리식 DB: db-statefulset (port 3306)
+##   - 통계 MSA DB: statistics-db-statefulset (이 파일, port 3306, 다른 namespace 같은 port 충돌 X)
+##
+## 용도:
+##   - DailyDumpScheduler (#889) 가 매일 05:00 Redis 데이터를 영구 저장
+##   - ShedLock 분산 락 테이블 (shedlock)
+##   - LongTerm 통계 조회 (월별/연도별/카테고리별)
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: statistics-db
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      type: statistics-db
+  serviceName: statistics-db-service
+  template:
+    metadata:
+      labels:
+        type: statistics-db
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+        - name: mariadb
+          image: mariadb:11
+          env:
+            # K8s Secret 에서 주입 (statistics-secret 의 DB_PASS)
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: statistics-secret
+                  key: DB_PASS
+            - name: MARIADB_DATABASE
+              value: nexus
+          ports:
+            - containerPort: 3306
+              name: mysql
+          volumeMounts:
+            - name: volume
+              mountPath: /var/lib/mysql
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          # Liveness — TCP 응답
+          livenessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          # Readiness — mariadb-admin ping (실제 query 처리 가능 시점)
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "mariadb-admin ping -uroot -p$MARIADB_ROOT_PASSWORD"
+            initialDelaySeconds: 30
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: volume
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            # 5Gi - daily_*_sales 테이블 + shedlock 만 저장하므로 충분
+            storage: 5Gi
+        storageClassName: longhorn
+
+---
+
+## Headless Service — 통계 MSA 가 statistics-db-service:3306 으로 접속
+apiVersion: v1
+kind: Service
+metadata:
+  name: statistics-db-service
+  namespace: default
+spec:
+  clusterIP: None
+  selector:
+    type: statistics-db
+  ports:
+    - port: 3306
+      targetPort: 3306
+      name: mysql

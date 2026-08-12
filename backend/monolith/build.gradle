@@ -1,0 +1,77 @@
+plugins {
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+}
+
+bootJar {
+    archiveFileName = 'monolith.jar'
+}
+
+jar {
+    enabled = false
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    implementation 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    implementation 'io.jsonwebtoken:jjwt-orgjson:0.12.6'
+
+    // --- DB 연결 ---
+    implementation 'org.mariadb.jdbc:mariadb-java-client:3.4.1'
+    runtimeOnly 'com.mysql:mysql-connector-j'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // --- lombok 관련 ---
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // --- Swagger 관련 ---
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.4'
+
+    // --- 테스트 관련 ---
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // --- env 관련 ---
+    implementation 'io.github.cdimascio:dotenv-java:3.0.0'
+
+    // --- S3 관련 ---
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3:3.4.2'
+
+    // --- Spring AI (OpenAI + MCP Client) ---
+    implementation platform('org.springframework.ai:spring-ai-bom:1.0.0-M6')
+    implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+    implementation 'org.springframework.ai:spring-ai-mcp-client-spring-boot-starter'
+
+    // --- 크롤링 ---
+    implementation 'org.jsoup:jsoup:1.18.1'
+
+    // --- portone ---
+    implementation 'io.portone:server-sdk:0.23.0'
+
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+
+    // --- 보고서 ---
+    implementation 'org.commonmark:commonmark:0.21.0'
+    implementation 'com.openhtmltopdf:openhtmltopdf-pdfbox:1.0.10'
+
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+    // --- Kafka ---
+    implementation 'org.springframework.kafka:spring-kafka'
+
+    // Gson 최신 버전 강제 주입!
+    implementation 'com.google.code.gson:gson:2.11.0'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+bootRun {
+    workingDir = rootProject.projectDir
+}

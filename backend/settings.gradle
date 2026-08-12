@@ -1,0 +1,13 @@
+rootProject.name = 'Nexus'
+
+include 'monolith'
+include 'statistics'
+include 'pos'
+include 'batch'
+
+include 'billing-batch'
+
+
+include 'gateway'
+include 'discovery'
+

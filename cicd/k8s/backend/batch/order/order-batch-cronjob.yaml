@@ -1,0 +1,40 @@
+## Order Batch CronJob
+## 매일 자정(KST 00:00)에 발주 일괄승인 배치 자동 실행
+## 배치 앱을 직접 실행: 기동 → Job 자동 실행 → 종료
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: orders-approve-cronjob
+spec:
+  schedule: "0 0 * * *"
+  timeZone: "Asia/Seoul"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 60    # 완료 후 60초 뒤 Pod 자동 삭제
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: nexus-batch
+              image: jaehyuklee071/nexusbatch:latest
+              imagePullPolicy: Always
+              env:
+                - name: SPRING_MAIN_WEB_APPLICATION_TYPE
+                  value: "none"
+                - name: SPRING_BATCH_JOB_ENABLED
+                  value: "true"
+              envFrom:
+                - configMapRef:
+                    name: order-batch-config
+                - secretRef:
+                    name: nexus-backend-secret
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+                limits:
+                  cpu: 500m
+                  memory: 768Mi

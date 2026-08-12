@@ -1,0 +1,12 @@
+server:
+  port: 9090
+
+spring:
+  application:
+    name: discovery
+
+# 등록하지 말라고 알려줌
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false

@@ -1,0 +1,76 @@
+## 통계 MSA Deployment — 운영 환경 (namespace: default)
+## image: deatytim/nexusstat:v1
+## replicas: 3 (#889 ShedLock 분산 락 적용으로 멀티 replica 안전)
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: statistics-deployment
+  namespace: default
+  labels:
+    app: statistics
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: statistics
+  template:
+    metadata:
+      labels:
+        app: statistics
+      annotations:
+        # Prometheus (Grafana) 가 메트릭 스크랩 (application-prod.yaml 의 actuator 활성)
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8081"
+    spec:
+      containers:
+        - name: statistics
+          image: deatytim/nexusstat:v1
+          # imagePullPolicy: Always — 같은 태그라도 항상 최신 pull (#855 빌드 캐시 함정 방지)
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8081
+          envFrom:
+            # ConfigMap (DB_URL, KAFKA, REDIS, EUREKA 등)
+            - configMapRef:
+                name: statistics-config
+            # Secret (DB_PASS)
+            - secretRef:
+                name: statistics-secret
+          # Readiness — /actuator/health 가 UP 응답하면 트래픽 받음
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            # Spring Boot 시작 시간 고려 (60초 후 첫 체크)
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 5
+          # Liveness — DOWN 시 pod 재시작
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      # 가능하면 서로 다른 노드에 분산 (HA 효과)
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: statistics
+                topologyKey: kubernetes.io/hostname

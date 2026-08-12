@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: NexusStatistics
+  profiles:
+    active: dev
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Gradle Imported" enabled="true">
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.projectlombok/lombok/1.18.36/5a30490a6e14977d97d9c73c924c1f1b5311ea95/lombok-1.18.36.jar" />
+        </processorPath>
+        <module name="Nexus.pos.main" />
+        <module name="Nexus.batch.main" />
+        <module name="Nexus.statistics.main" />
+        <module name="Nexus.billing-batch.main" />
+        <module name="Nexus.monolith.main" />
+      </profile>
+      <profile name="Gradle Imported" enabled="true">
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.projectlombok/lombok/1.18.30/f195ee86e6c896ea47a1d39defbe20eb59cd149d/lombok-1.18.30.jar" />
+        </processorPath>
+        <module name="Nexus.gateway.main" />
+      </profile>
+    </annotationProcessing>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="Nexus.batch" options="-parameters" />
+      <module name="Nexus.batch.main" options="-parameters" />
+      <module name="Nexus.batch.test" options="-parameters" />
+      <module name="Nexus.billing-batch" options="-parameters" />
+      <module name="Nexus.billing-batch.main" options="-parameters" />
+      <module name="Nexus.billing-batch.test" options="-parameters" />
+      <module name="Nexus.discovery" options="-parameters" />
+      <module name="Nexus.discovery.main" options="-parameters" />
+      <module name="Nexus.discovery.test" options="-parameters" />
+      <module name="Nexus.gateway" options="-parameters" />
+      <module name="Nexus.gateway.main" options="-parameters" />
+      <module name="Nexus.gateway.test" options="-parameters" />
+      <module name="Nexus.monolith" options="-parameters" />
+      <module name="Nexus.monolith.main" options="-parameters" />
+      <module name="Nexus.monolith.test" options="-parameters" />
+      <module name="Nexus.pos" options="-parameters" />
+      <module name="Nexus.pos.main" options="-parameters" />
+      <module name="Nexus.pos.test" options="-parameters" />
+      <module name="Nexus.statistics" options="-parameters" />
+      <module name="Nexus.statistics.main" options="-parameters" />
+      <module name="Nexus.statistics.test" options="-parameters" />
+    </option>
+  </component>
+</project>

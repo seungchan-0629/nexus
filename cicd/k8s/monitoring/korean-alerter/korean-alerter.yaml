@@ -1,0 +1,253 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: korean-alerter-secret
+  namespace: monitoring
+type: Opaque
+stringData:
+  webhook-url: "여기에_DISCORD_WEBHOOK_URL_붙여넣기"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: korean-alerter-code
+  namespace: monitoring
+data:
+  korean-alerter.py: |
+    import os
+    import time
+    import threading
+    from datetime import timezone, timedelta
+    import requests
+    from kubernetes import client, config, watch
+    from urllib3.exceptions import ProtocolError, ReadTimeoutError
+
+    WEBHOOK_URL = os.environ["DISCORD_WEBHOOK_URL"]
+    NAMESPACES = os.environ.get("WATCH_NAMESPACES", "default,nexus,monitoring").split(",")
+    CLUSTER_NAME = os.environ.get("CLUSTER_NAME", "nexus-cluster")
+    KST = timezone(timedelta(hours=9))
+
+    REASON_KR = {
+        "BackOff": "컨테이너 재시작 반복",
+        "CrashLoopBackOff": "컨테이너 크래시 반복",
+        "ImagePullBackOff": "이미지 Pull 실패 (반복)",
+        "ErrImagePull": "이미지 Pull 실패",
+        "OOMKilled": "메모리 부족으로 종료",
+        "FailedScheduling": "스케줄링 실패 (자원 부족)",
+        "Unhealthy": "헬스체크 실패",
+        "FailedMount": "볼륨 마운트 실패",
+        "NodeNotReady": "노드 준비 안 됨",
+        "Evicted": "리소스 부족으로 추방됨",
+        "FailedCreate": "리소스 생성 실패",
+        "FailedDelete": "리소스 삭제 실패",
+        # 노드 사망/재부팅 직후 발생하는 reason들
+        "Rebooted": "노드 재부팅 발생",
+        "NodeLost": "노드 연결 끊김",
+        "ContainerStatusUnknown": "컨테이너 상태 불명 (노드 응답 없음)",
+        "InvalidDiskCapacity": "디스크 용량 인식 실패",
+    }
+
+    COLOR_MAP = {
+        "Warning": 0xFF6B35,
+        "Normal": 0x2ECC71,
+    }
+
+
+    def translate_reason(reason):
+        return REASON_KR.get(reason, reason)
+
+
+    def send_discord(embed):
+        payload = {"embeds": [embed]}
+        try:
+            resp = requests.post(WEBHOOK_URL, json=payload, timeout=10)
+            if resp.status_code == 429:
+                retry_after = resp.json().get("retry_after", 5)
+                time.sleep(retry_after)
+                requests.post(WEBHOOK_URL, json=payload, timeout=10)
+        except requests.RequestException as e:
+            print(f"Discord 전송 실패: {e}", flush=True)
+
+
+    def build_embed(event):
+        obj = event.involved_object
+        reason = event.reason or "Unknown"
+        reason_kr = translate_reason(reason)
+        namespace = obj.namespace or "-"
+        name = obj.name or "Unknown"
+        kind = obj.kind or "Unknown"
+        message = event.message or ""
+        event_type = event.type or "Warning"
+
+        color = COLOR_MAP.get(event_type, 0xFF0000)
+
+        # 발생 시각: event_time → last_timestamp → creation_timestamp 순으로 fallback
+        raw_ts = (
+            event.event_time
+            or event.last_timestamp
+            or (event.metadata.creation_timestamp if event.metadata else None)
+        )
+        if raw_ts:
+            time_kst = raw_ts.astimezone(KST).strftime("%Y-%m-%d %H:%M:%S KST")
+            iso_ts = raw_ts.isoformat()
+        else:
+            time_kst = "-"
+            iso_ts = None
+
+        embed = {
+            "title": f"[{reason_kr}] {kind}/{name}",
+            "color": color,
+            "fields": [
+                {"name": "클러스터", "value": CLUSTER_NAME, "inline": True},
+                {"name": "네임스페이스", "value": namespace, "inline": True},
+                {"name": "발생 시각", "value": time_kst, "inline": False},
+                {"name": "원인", "value": f"{reason_kr} (`{reason}`)", "inline": False},
+                {"name": "상세", "value": message[:1024] if message else "-", "inline": False},
+            ],
+            "footer": {"text": f"{CLUSTER_NAME} | korean-alerter"},
+        }
+        if iso_ts:
+            embed["timestamp"] = iso_ts  # Discord가 footer 옆에 자동으로 로컬 시간 표시
+        return embed
+
+
+    def watch_namespace_forever(v1, ns):
+        """단일 네임스페이스를 영구적으로 watch.
+        watch.stream()이 끊기면 즉시 재연결. 한 ns 장애가 다른 ns에 영향 주지 않도록 스레드별로 실행."""
+        while True:
+            try:
+                print(f"[{ns}] watch 시작", flush=True)
+                w = watch.Watch()
+                for event in w.stream(
+                    v1.list_namespaced_event,
+                    ns,
+                    timeout_seconds=300,       # 서버 측 watch timeout: 5분
+                    _request_timeout=310,      # 클라이언트 측 HTTP timeout (필수, 서버보다 약간 길게)
+                ):
+                    k8s_event = event["object"]
+                    if k8s_event.type == "Warning":
+                        embed = build_embed(k8s_event)
+                        send_discord(embed)
+                print(f"[{ns}] watch 정상 종료 - 재연결", flush=True)
+            except (ProtocolError, ReadTimeoutError) as e:
+                print(f"[{ns}] watch 연결 끊김 ({type(e).__name__}) - 3초 후 재연결", flush=True)
+                time.sleep(3)
+            except client.exceptions.ApiException as e:
+                print(f"[{ns}] K8s API 에러 status={e.status} - 5초 후 재시도", flush=True)
+                time.sleep(5)
+            except Exception as e:
+                print(f"[{ns}] 예상 외 에러: {type(e).__name__}: {e} - 5초 후 재시도", flush=True)
+                time.sleep(5)
+
+
+    def main():
+        try:
+            config.load_incluster_config()
+        except config.ConfigException:
+            config.load_kube_config()
+
+        v1 = client.CoreV1Api()
+        print(f"korean-alerter 시작 - 감시 네임스페이스: {NAMESPACES}", flush=True)
+
+        threads = []
+        for ns in NAMESPACES:
+            t = threading.Thread(target=watch_namespace_forever, args=(v1, ns), daemon=False)
+            t.start()
+            threads.append(t)
+        for t in threads:
+            t.join()
+
+
+    if __name__ == "__main__":
+        main()
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: korean-alerter
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: korean-alerter
+rules:
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: korean-alerter
+subjects:
+  - kind: ServiceAccount
+    name: korean-alerter
+    namespace: monitoring
+roleRef:
+  kind: ClusterRole
+  name: korean-alerter
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: korean-alerter
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: korean-alerter
+  template:
+    metadata:
+      labels:
+        app: korean-alerter
+    spec:
+      serviceAccountName: korean-alerter
+      initContainers:
+        - name: install-deps
+          image: python:3.12-slim
+          command: ["pip", "install", "--target=/deps", "kubernetes==30.1.0", "requests==2.32.3"]
+          volumeMounts:
+            - name: deps
+              mountPath: /deps
+      containers:
+        - name: korean-alerter
+          image: python:3.12-slim
+          command: ["python", "-u", "/app/korean-alerter.py"]
+          env:
+            - name: PYTHONPATH
+              value: "/deps"
+            - name: DISCORD_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: korean-alerter-secret
+                  key: webhook-url
+            - name: WATCH_NAMESPACES
+              value: "default,nexus,monitoring"
+            - name: CLUSTER_NAME
+              value: "nexus-cluster"
+          volumeMounts:
+            - name: code
+              mountPath: /app
+            - name: deps
+              mountPath: /deps
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: code
+          configMap:
+            name: korean-alerter-code
+        - name: deps
+          emptyDir: {}

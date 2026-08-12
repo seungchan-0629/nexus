@@ -1,0 +1,70 @@
+eureka:
+  instance:
+    lease-renewal-interval-in-seconds: 10     # 주소를 갱신하는 시간
+    lease-expiration-duration-in-seconds: 30  # 가져온 주소의 만료 시간
+    prefer-ip-address: true                   # 내 주소를 알려줄 때 Hostname 대신 IP 주소 알려주기
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVICE_URL:http://localhost:8761/eureka}
+    register-with-eureka: true # 현재 자신의 IP주소를 유레카에 등록
+    fetch-registry: true       # 유레카에 등록된 주소들을 받아오는 것
+
+spring:
+  application:
+    name: NexusStatistics
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASS}
+    driver-class-name: ${DB_DRIVER}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+  jpa:
+    hibernate:
+      ddl-auto: update             # 엔티티 복제 단계에서 테이블 자동 생성
+    show-sql: false
+    defer-datasource-initialization: true
+  sql:
+    init:
+      mode: ${SQL_INIT_MODE:always} # 학습 단계 always, 운영 시 never로 가능
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: ${KAFKA_GROUP_ID:statistics-dev}
+      auto-offset-reset: earliest              # 토픽 처음부터 읽기
+      key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "*"
+        # POS / monolith 가 보내는 __TypeId__ 헤더를 statistics 의 동등 클래스로 매핑
+        # (서로 다른 MSA 라 패키지명이 다름 — POS 헤더의 클래스명을 그대로 신뢰하면 ClassNotFound)
+        spring.json.type.mapping: >
+          paymentEvent:com.example.statistics.event.PaymentEvent,
+          com.example.pos.event.PaymentEvent:com.example.statistics.event.PaymentEvent
+        # 또는 헤더 무시하고 default 타입 강제 (위 매핑이 안 잡힐 때 fallback)
+        spring.json.value.default.type: com.example.statistics.event.PaymentEvent
+        spring.json.use.type.headers: false
+    # 통계 MSA 는 outbound produce 가 없고 DLT publishing 만 사용.
+    # 역직렬화 실패 시 DefaultErrorHandler 가 원본 record value (byte[]) 를 그대로
+    # <topic>.DLT 로 전달하므로 ByteArraySerializer 로 직렬화 (StringSerializer 사용 시
+    # ClassCastException: [B → String 발생).
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2

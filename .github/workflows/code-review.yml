@@ -1,0 +1,60 @@
+name: GPT Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR diff
+        id: diff
+        run: |
+          git diff origin/${{ github.base_ref }}...HEAD > pr_diff.txt
+
+      - name: GPT Review
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 << 'EOF'
+          import os, requests, json
+
+          diff = open("pr_diff.txt").read()[:8000]  # 토큰 절약
+
+          # GPT 호출
+          res = requests.post("https://api.openai.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"},
+            json={
+              "model": "gpt-4o",
+              "messages": [
+                {"role": "system", "content": "당신은 시니어 백엔드 개발자입니다. PR diff를 보고 한국어로 코드리뷰를 작성하세요. 버그, 성능, 보안, 가독성 위주로 리뷰해주세요."},
+                {"role": "user", "content": f"다음 PR diff를 리뷰해주세요:\n\n{diff}"}
+              ],
+              "max_tokens": 2000
+            }
+          ).json()
+
+          review = res["choices"][0]["message"]["content"]
+
+          # PR 코멘트 등록
+          requests.post(
+            f"https://api.github.com/repos/{os.environ['REPO']}/issues/{os.environ['PR_NUMBER']}/comments",
+            headers={
+              "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+              "Accept": "application/vnd.github.v3+json"
+            },
+            json={"body": f"## 🤖 GPT 코드리뷰\n\n{review}"}
+          )
+          EOF
