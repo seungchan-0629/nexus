@@ -20,6 +20,15 @@ public class BillingDto {
     }
 
     @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "빌링 정보 삭제 요청")
+    public static class VerifyDeleteBillingRequestDto {
+        @Schema(description = "사용자 비밀번호")
+        private String password;
+    }
+
+    @Getter
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
