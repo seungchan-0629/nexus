@@ -19,6 +19,8 @@ public enum CardCompany {
     CITY("36", "씨티카드"),
     WOORI("33", "우리카드"),
     WOORI_CULTURE("W1", "우리컬쳐"),
+    TOSS("24", "토스뱅크/카드"),
+    KAKAOPAY("15", "카카오페이"),
     UNKNOWN("", "기타카드");
 
     private final String code;
