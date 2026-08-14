@@ -5,6 +5,9 @@ import com.example.nexus.common.model.BaseResponseStatus;
 import com.example.nexus.common.enums.CardCompany;
 import com.example.nexus.domain.billing.model.Billing;
 import com.example.nexus.domain.billing.model.BillingDto;
+import com.example.nexus.domain.store.StoreService;
+import com.example.nexus.domain.user.UserService;
+import com.example.nexus.domain.user.model.AuthUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -23,6 +26,8 @@ import java.util.stream.Collectors;
 public class BillingService {
 
     private final BillingRepository billingRepository;
+    private final StoreService storeService;
+    private final UserService userService;
     private final RestClient restClient = RestClient.create();
 
     @Value("${billing.secret-key}")
@@ -125,7 +130,24 @@ public class BillingService {
     }
 
     @Transactional
-    public void deleteBillingInfo(Long storeIdx) {
+    public void deleteBillingInfo(AuthUserDetails authUserDetails, String password) {
+        // 1. 비밀번호 검증
+        if (!userService.verifyPassword(authUserDetails, password)) {
+            throw new BaseException(BaseResponseStatus.PASSWORD_WRONG);
+        }
+
+        // 2. 소유권 기반 storeIdx 조회
+        Long storeIdx = storeService.findStoreIdx(authUserDetails.getIdx());
+        if (storeIdx == null) {
+            throw new BaseException(BaseResponseStatus.PAYMENT_ENROLL_INVALID_USER);
+        }
+
+        // 3. 빌링 정보 존재 여부 확인
+        if (billingRepository.findByStoreIdx(storeIdx).isEmpty()) {
+            throw new BaseException(BaseResponseStatus.PAYMENT_BILLING_NOT_EXIST);
+        }
+
+        // 4. 삭제 수행
         billingRepository.deleteByStoreIdx(storeIdx);
     }
 }

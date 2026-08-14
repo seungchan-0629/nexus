@@ -100,7 +100,7 @@ public class BillingController {
         return ResponseEntity.ok(BaseResponse.success(billingService.getBillingListByStore(storeIdx)));
     }
 
-    @Operation(summary = "빌링 정보 삭제", description = "가맹점에 등록된 빌링 정보를 삭제합니다.")
+    @Operation(summary = "빌링 정보 삭제", description = "가맹점에 등록된 빌링 정보를 비밀번호 재확인을 거쳐 삭제합니다.")
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -121,9 +121,9 @@ public class BillingController {
                     )
             )
     })
-    @DeleteMapping("/delete/{storeIdx}")
-    public ResponseEntity deleteBillingInfo(@Parameter(description = "가맹점 번호") @PathVariable Long storeIdx) {
-        billingService.deleteBillingInfo(storeIdx);
+    @PostMapping("/delete/verify")
+    public ResponseEntity deleteBillingInfo(@AuthenticationPrincipal AuthUserDetails authUserDetails, @RequestBody BillingDto.VerifyDeleteBillingRequestDto request) {
+        billingService.deleteBillingInfo(authUserDetails, request.getPassword());
         return ResponseEntity.ok(BaseResponse.success("빌링 정보 삭제 성공"));
     }
 }
