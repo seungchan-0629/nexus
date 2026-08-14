@@ -36,11 +36,11 @@ const getBillingList = () => {
 
 /**
  * 빌링 정보(카드) 삭제
- * @param {number} storeIdx - 가맹점 번호
+ * @param {Object} passwordData - { password }
  * @returns {Promise} 삭제 결과
  */
-const deleteBillingInfo = (storeIdx) => {
-  return api.delete(`/api/billing/delete/${storeIdx}`)
+const deleteBillingInfo = (passwordData) => {
+  return api.post('/api/billing/delete/verify', passwordData)
 }
 
 /**

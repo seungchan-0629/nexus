@@ -23,15 +23,25 @@
               <p><strong>등록일:</strong> {{ formatDate(billing.authenticatedAt) }}</p>
             </div>
           </div>
-          <button class="btn btn-delete" @click="handleDelete(billing.storeIdx)">삭제</button>
+          <button class="btn btn-delete" @click="showPasswordModal = true">삭제</button>
         </div>
       </div>
       <div v-else class="empty-state">
         <p>등록된 결제 수단이 없습니다. 새로운 카드를 등록해주세요.</p>
       </div>
     </div>
+<!-- 비밀번호 확인 모달 -->
+<PasswordConfirmModal
+  :is-open="showPasswordModal"
+  :is-loading="isDeleting"
+  :is-success="isDeleteSuccess"
+  @close="closeModal"
+  @confirm="handleDelete"
+/>
 
-    <!-- 2. 카드 등록 버튼 -->
+<!-- 2. 카드 등록 버튼 -->
+<!-- ... -->
+
     <div class="section action-section">
       <button v-if="status === 'READY'" class="btn btn-primary" @click="requestBilling('카드')">
         새로운 카드 등록 및 변경하기
@@ -61,6 +71,7 @@
 import { ref, onMounted } from 'vue'
 import settlementApi from '@/api/settlement'
 import { useAuthStore } from '@/stores/auth'
+import PasswordConfirmModal from '@/components/common/PasswordConfirmModal.vue'
 
 const authStore = useAuthStore()
 const CLIENT_KEY = import.meta.env.VITE_CLIENT_KEY
@@ -68,6 +79,7 @@ let tossPayments = null
 
 const status = ref('READY')
 const loading = ref(false)
+const showPasswordModal = ref(false)
 const billingList = ref([])
 const errorData = ref({ code: '', message: '' })
 
@@ -170,17 +182,39 @@ const handleIssueBillingKey = async (authKey, customerKey) => {
   }
 }
 
-const handleDelete = async (storeIdx) => {
-  if (!confirm('정말로 이 결제 수단을 삭제하시겠습니까?')) return
+const isDeleting = ref(false)
+const isDeleteSuccess = ref(false)
 
+const closeModal = () => {
+  if (isDeleting.value) return
+  showPasswordModal.value = false
+  isDeleteSuccess.value = false
+}
+
+const handleDelete = async (password) => {
+  isDeleting.value = true
   try {
-    const res = await settlementApi.deleteBillingInfo(storeIdx)
+    const res = await settlementApi.deleteBillingInfo({ password })
     if (res.data.success) {
-      alert('삭제되었습니다.')
+      // 1. 데이터 먼저 갱신
       await fetchBillingList()
+      
+      // 2. 삭제 성공 상태로 변경 (모달에 '삭제되었습니다' 표시)
+      isDeleting.value = false
+      isDeleteSuccess.value = true
+      
+      // 3. 잠시 후 모달 닫기
+      setTimeout(() => {
+        showPasswordModal.value = false
+        isDeleteSuccess.value = false
+      }, 1500)
+    } else {
+      isDeleting.value = false
+      alert('삭제 실패: ' + (res.data.message || '알 수 없는 오류'))
     }
   } catch (error) {
-    alert('삭제 실패: ' + error.message)
+    isDeleting.value = false
+    alert('삭제 실패: ' + (error.response?.data?.message || error.message))
   }
 }
 
