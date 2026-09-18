@@ -137,13 +137,13 @@ public class DeliveryController {
     @GetMapping("/store")
     public ResponseEntity<BaseResponse<DeliveryDto.DeliveryPageRes>> getMyStoreDeliveries(
             @AuthenticationPrincipal AuthUserDetails authUserDetails,
-            @Parameter(description = "발주 번호") @RequestParam(required = false) Long orderIdx,
-            @Parameter(description = "배송 상태 (READY, START, DELIVERYING, DELIVERED, DELAY)") @RequestParam(required = false) DeliveryStatus status,
-            @Parameter(description = "조회 연도") @RequestParam(required = false) Integer year,
-            @Parameter(description = "조회 월") @RequestParam(required = false) Integer month,
-            @Parameter(description = "조회 일") @RequestParam(required = false) Integer day,
-            @Parameter(description = "페이지 번호", example = "0") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "페이지 크기", example = "10") @RequestParam(defaultValue = "10") int size) {
+            @Parameter(description = "발주 번호") @RequestParam(value = "orderIdx", required = false) Long orderIdx,
+            @Parameter(description = "배송 상태 (READY, START, DELIVERYING, DELIVERED, DELAY)") @RequestParam(value = "status", required = false) DeliveryStatus status,
+            @Parameter(description = "조회 연도") @RequestParam(value = "year", required = false) Integer year,
+            @Parameter(description = "조회 월") @RequestParam(value = "month", required = false) Integer month,
+            @Parameter(description = "조회 일") @RequestParam(value = "day", required = false) Integer day,
+            @Parameter(description = "페이지 번호", example = "0") @RequestParam(value = "page", defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "10") @RequestParam(value = "size", defaultValue = "10") int size) {
 
         if (authUserDetails == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");

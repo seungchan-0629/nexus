@@ -20,12 +20,18 @@ public interface HeadIncomeRepository extends JpaRepository<HeadIncome, Long> {
     HeadIncome findByOrdersIdx(Long orderIdx);
 
     @Query("SELECT hi FROM HeadIncome hi " +
-            "JOIN hi.orders o " +
-            "WHERE (:storeName IS NULL OR hi.store.storeName LIKE %:storeName%) " +
+            "JOIN FETCH hi.store s " +
+            "JOIN FETCH hi.orders o " +
+            "WHERE (:storeName IS NULL OR :storeName = '' OR s.storeName LIKE :storeName%) " +
             "AND (:status IS NULL OR hi.status = :status) " +
             "AND (:startDate IS NULL OR FUNCTION('DATE', o.createdAt) >= :startDate) " +
             "AND (:endDate IS NULL OR FUNCTION('DATE', o.createdAt) <= :endDate)")
-    List<HeadIncome> findByFilters(String storeName, Boolean status, LocalDate startDate, LocalDate endDate);
+    List<HeadIncome> findByFilters(
+            @Param("storeName") String storeName,
+            @Param("status") Boolean status,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
 
     // 본사 정산 관리 - 가맹점별 그루핑 페이징 조회
     // 가맹점별로 묶어서 발주 건수, 총 정산 금액, 정산 상태를 집계
@@ -34,7 +40,7 @@ public interface HeadIncomeRepository extends JpaRepository<HeadIncome, Long> {
                    CASE WHEN SUM(CASE WHEN hi.status = false THEN 1 ELSE 0 END) > 0 THEN false ELSE true END
             FROM HeadIncome hi
             JOIN hi.orders o
-            WHERE (:storeName IS NULL OR :storeName = '' OR hi.store.storeName LIKE %:storeName%)
+            WHERE (:storeName IS NULL OR :storeName = '' OR hi.store.storeName LIKE :storeName%)
               AND o.createdAt >= :start
               AND o.createdAt < :end
             GROUP BY hi.store.idx, hi.store.storeName
@@ -47,12 +53,28 @@ public interface HeadIncomeRepository extends JpaRepository<HeadIncome, Long> {
             Pageable pageable
     );
 
-    // 본사 정산 관리 - 상단 카드용 전체 청구 합계
+    // 본사 정산 관리 - 상단 카드용 전체 청구 합계 및 가맹점 수 요약
+    @Query("""
+            SELECT COALESCE(SUM(hi.price), 0), COUNT(DISTINCT hi.store.idx)
+            FROM HeadIncome hi
+            JOIN hi.orders o
+            LEFT JOIN hi.store s ON hi.store.idx = s.idx
+            WHERE (:storeName IS NULL OR :storeName = '' OR s.storeName LIKE :storeName%)
+              AND o.createdAt >= :start
+              AND o.createdAt < :end
+            """)
+    List<Object[]> findSettlementSummary(
+            @Param("storeName") String storeName,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
     @Query("""
             SELECT COALESCE(SUM(hi.price), 0)
             FROM HeadIncome hi
             JOIN hi.orders o
-            WHERE (:storeName IS NULL OR :storeName = '' OR hi.store.storeName LIKE %:storeName%)
+            LEFT JOIN hi.store s ON hi.store.idx = s.idx
+            WHERE (:storeName IS NULL OR :storeName = '' OR s.storeName LIKE :storeName%)
               AND o.createdAt >= :start
               AND o.createdAt < :end
             """)
@@ -65,6 +87,7 @@ public interface HeadIncomeRepository extends JpaRepository<HeadIncome, Long> {
     @Query("""
             SELECT hi
             FROM HeadIncome hi
+            JOIN FETCH hi.orders o
             WHERE hi.store.idx = :storeIdx
               AND hi.status = false
               AND hi.orders.createdAt >= :start

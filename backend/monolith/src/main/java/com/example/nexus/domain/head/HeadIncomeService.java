@@ -3,7 +3,6 @@ package com.example.nexus.domain.head;
 import com.example.nexus.common.model.PageResponse;
 import com.example.nexus.domain.head.model.HeadIncome;
 import com.example.nexus.domain.head.model.HeadIncomeDto;
-import com.example.nexus.domain.orders.model.Orders;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -15,7 +14,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -136,11 +134,26 @@ public class HeadIncomeService {
         LocalDateTime start = LocalDateTime.of(LocalDate.of(year, month, 1), LocalTime.MIN);
         LocalDateTime end = start.plusMonths(1);
 
-        Long totalBillingAmount = headIncomeRepository.sumTotalBillingByMonth(storeName, start, end);
+        List<Object[]> summaryList = headIncomeRepository.findSettlementSummary(storeName, start, end);
+        
+        Long totalBillingAmount = 0L;
+        int totalStoreCount = 0;
+
+        if (summaryList != null && !summaryList.isEmpty()) {
+            Object[] row = summaryList.get(0);
+            if (row != null) {
+                if (row[0] != null) {
+                    totalBillingAmount = ((Number) row[0]).longValue();
+                }
+                if (row[1] != null) {
+                    totalStoreCount = ((Number) row[1]).intValue();
+                }
+            }
+        }
 
         return HeadIncomeDto.HeadSettlementSummaryRes.builder()
-                .totalBillingAmount(totalBillingAmount != null ? totalBillingAmount : 0L)
-                .totalStoreCount(0)
+                .totalBillingAmount(totalBillingAmount)
+                .totalStoreCount(totalStoreCount)
                 .build();
     }
 }

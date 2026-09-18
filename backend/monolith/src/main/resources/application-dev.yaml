@@ -7,36 +7,39 @@ spring:
     password: ${DB_PASS}
     driver-class-name: ${DB_DRIVER}
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      connection-timeout: 30000
+      maximum-pool-size: 50        # DB 서버 스펙이 허용한다면 50~100 정도로 확장
+      minimum-idle: 50             # maximum과 동일하게 맞춰 커넥션 재생성 비용 제거
+      connection-timeout: 3000     # 3초로 대폭 축소 (병목 발생 시 스레드가 무한정 멈추지 않고 즉각 에러 감지)
       idle-timeout: 600000
+      max-lifetime: 1800000        # 30분 (MariaDB/MySQL wait_timeout보다 짧게 필수 권장)
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: false
+    show-sql: true
     defer-datasource-initialization: true
     properties:
       hibernate:
         default_batch_fetch_size: 100
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      properties:
-        spring.json.add.type.headers: true
-        spring.json.type.mapping: paymentEvent:com.example.nexus.event.PaymentEvent,storeEvent:com.example.nexus.event.StoreEvent,menuEvent:com.example.nexus.event.MenuEvent,productEvent:com.example.nexus.event.ProductEvent
-    consumer:
-      group-id: monolith-autoorder-group
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
-      properties:
-        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
-        spring.json.trusted.packages: "*"
-        spring.json.value.default.type: com.example.nexus.event.PosCloseEvent
-        spring.json.type.mapping: posCloseEvent:com.example.nexus.event.PosCloseEvent
+        format_sql: true
+        highlight_sql: true
+#  kafka:
+#    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+#    producer:
+#      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+#      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+#      properties:
+#        spring.json.add.type.headers: true
+#        spring.json.type.mapping: paymentEvent:com.example.nexus.event.PaymentEvent,storeEvent:com.example.nexus.event.StoreEvent,menuEvent:com.example.nexus.event.MenuEvent,productEvent:com.example.nexus.event.ProductEvent
+#    consumer:
+#      group-id: monolith-autoorder-group
+#      auto-offset-reset: earliest
+#      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+#      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+#      properties:
+#        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+#        spring.json.trusted.packages: "*"
+#        spring.json.value.default.type: com.example.nexus.event.PosCloseEvent
+#        spring.json.type.mapping: posCloseEvent:com.example.nexus.event.PosCloseEvent
 
   ai:
     openai:
@@ -47,6 +50,7 @@ spring:
           temperature: 0.3
     mcp:
       client:
+        enabled: false
         stdio:
           connections:
             naver-news:
@@ -71,7 +75,9 @@ spring:
         static: ${AWS_S3_STATIC}
   sql:
     init:
-      mode: never
+      mode: always
+      continue-on-error: true
+      data-locations: classpath:data.sql
   mail:
     host: smtp.gmail.com
     port: 587
@@ -99,7 +105,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health, prometheus
   endpoint:
     health:
       show-details: always
